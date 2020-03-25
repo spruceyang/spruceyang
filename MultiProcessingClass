@@ -1,0 +1,50 @@
+import multiprocessing as mp
+import time
+import datetime as dt
+
+class MultiProcessor():
+    
+    def __init__(self, tgt_function, args):
+        
+        self.tgt_function_raw   =   tgt_function
+        self.args               =   args
+        self.num_process        =   len(args)
+        self.isPrintingArgs     =   True
+        
+    def target_function(self, args, output, i):
+        print("Running thread No. {} with function with inputs:".format(str(i)))
+        if self.isPrintingArgs:
+            print(args)
+        try:
+            output.put( (self.tgt_function_raw(*args), args ) )
+        except:
+            log.debug("Thread No. {} failed caluclation...".format(str(i)))
+            output.put(None)
+                        
+    def run(self, waitTimeinMin = 30, isprintingArgs = True):
+        self.isPrintingArgs =   isprintingArgs
+        output              =   mp.Queue(self.num_process)
+        workers             =   [mp.Process(target = self.target_function, args = (iargs, output, i)) for i, iargs in enumerate(self.args)]
+    
+        for iworker in workers:
+            iworker.daemon = True
+            iworker.start()
+        #for iworker in workers:
+        #    iworker.join()
+        counter     =   0
+        end_time = dt.datetime.now() + dt.timedelta(minutes = waitTimeinMin)
+        while (not output.full()) and (dt.datetime.now() < end_time):
+            counter +=  1
+            time.sleep(1)
+            
+            if counter >= 60:
+                print("Waiting for further results.......")
+                counter = 0
+        results =   []
+        for _ in self.args:
+            try: 
+                results.append(output.get())
+            except:
+                print("output failed to collect results")
+                
+        return results        
